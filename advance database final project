@@ -1,0 +1,252 @@
+#application.py
+from bottle import Bottle, template, request, redirect
+from database import Student, Teacher
+
+app = Bottle()
+
+# Index route - Display a list of students and teachers
+@app.route('/')
+def index():
+    students = Student.select()
+    teachers = Teacher.select()
+
+    return template('index', students=students, teachers=teachers)
+
+# Add student route - Display a form to add a new student
+@app.route('/add_student', method='GET')
+def add_student_form():
+    return template('add_form', type='student')
+
+# Add student route - Handle the form submission to add a new student
+@app.route('/add_student', method='POST')
+def add_student():
+    student_name = request.forms.get('name')
+
+    # Validate input
+    if not student_name:
+        return "Student name must be provided."
+
+    # Create a new student
+    Student.create(name=student_name)
+    redirect('/')
+
+# Edit student route - Display a form to edit an existing student
+@app.route('/edit_student/<student_id:int>', method='GET')
+def edit_student_form(student_id):
+    student = Student.get_or_none(id=student_id)
+
+    return template('edit_form', type='student', record=student)
+
+# Edit student route - Handle the form submission to edit an existing student
+@app.route('/edit_student/<student_id:int>', method='POST')
+def edit_student(student_id):
+    student = Student.get_or_none(id=student_id)
+
+    if not student:
+        return "Student not found."
+
+    student.name = request.forms.get('name')
+    student.save()
+
+    redirect('/')
+
+# Delete student route - Delete an existing student
+@app.route('/delete_student/<student_id:int>')
+def delete_student(student_id):
+    student = Student.get_or_none(id=student_id)
+
+    if student:
+        student.delete_instance()
+
+    redirect('/')
+
+# Add teacher route - Display a form to add a new teacher
+@app.route('/add_teacher', method='GET')
+def add_teacher_form():
+    return template('add_form', type='teacher')
+
+# Add teacher route - Handle the form submission to add a new teacher
+@app.route('/add_teacher', method='POST')
+def add_teacher():
+    teacher_name = request.forms.get('name')
+
+    # Validate input
+    if not teacher_name:
+        return "Teacher name must be provided."
+
+    # Create a new teacher
+    Teacher.create(name=teacher_name)
+    redirect('/')
+
+# Edit teacher route - Display a form to edit an existing teacher
+@app.route('/edit_teacher/<teacher_id:int>', method='GET')
+def edit_teacher_form(teacher_id):
+    teacher = Teacher.get_or_none(id=teacher_id)
+    
+    return template('edit_form', type='teacher', record=teacher)
+
+# Edit teacher route - Handle the form submission to edit an existing teacher
+@app.route('/edit_teacher/<teacher_id:int>', method='POST')
+def edit_teacher(teacher_id):
+    teacher = Teacher.get_or_none(id=teacher_id)
+
+    if not teacher:
+        return "Teacher not found."
+
+    teacher.name = request.forms.get('name')
+    teacher.save()
+
+    redirect('/')
+
+# Delete teacher route - Delete an existing teacher
+@app.route('/delete_teacher/<teacher_id:int>')
+def delete_teacher(teacher_id):
+    teacher = Teacher.get_or_none(id=teacher_id)
+
+    if teacher:
+        teacher.delete_instance()
+
+    redirect('/')
+
+if __name__ == '__main__':
+    app.run(host='localhost', port=8080, debug=True)
+
+#database.py
+
+from peewee import Model, CharField, SqliteDatabase
+
+database = SqliteDatabase('school.db')  # Change 'school.db' to your preferred database name
+
+class Student(Model):
+    name = CharField()
+
+    class Meta:
+        database = database
+
+class Teacher(Model):
+    name = CharField()
+
+    class Meta:
+        database = database
+
+database.connect()
+database.create_tables([Student, Teacher], safe=True)
+
+#add_form.tpl
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add</title>
+</head>
+
+<body>
+    % if type == 'student':
+        <h1>Add Student</h1>
+        <form action="/add_student" method="post">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required>
+            <br>
+            <input type="submit" value="Add Student">
+        </form>
+    % elif type == 'teacher':
+        <h1>Add Teacher</h1>
+        <form action="/add_teacher" method="post">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required>
+            <br>
+            <input type="submit" value="Add Teacher">
+        </form>
+    % end
+
+    <a href="/">Back to List</a>
+</body>
+
+</html>
+
+#edit_form.tpl
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit {{ type.capitalize() }}</title>
+</head>
+
+<body>
+    <h1>Edit {{ type.capitalize() }}</h1>
+    <form action="/edit_{{ type }}/{{ record.id }}" method="post">
+        <label for="name">{{ type.capitalize() }} Name:</label>
+        <input type="text" id="name" name="name" value="{{ record.name }}" required>
+        <br>
+        <input type="submit" value="Update {{ type.capitalize() }}">
+    </form>
+
+    <a href="/">Back to List</a>
+</body>
+
+</html>
+
+#index.tpl
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student and Teacher List</title>
+</head>
+
+<body>
+    <h1>Student and Teacher List</h1>
+
+    <h2>Students</h2>
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Edit</th>
+            <th>Delete</th>
+        </tr>
+        % for student in students:
+        <tr>
+            <td>{{ student.id }}</td>
+            <td>{{ student.name }}</td>
+            <td><a href="/edit_student/{{ student.id }}">Edit</a></td>
+            <td><a href="/delete_student/{{ student.id }}">Delete</a></td>
+        </tr>
+        % end
+    </table>
+
+    <h2>Teachers</h2>
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Edit</th>
+            <th>Delete</th>
+        </tr>
+        % for teacher in teachers:
+        <tr>
+            <td>{{ teacher.id }}</td>
+            <td>{{ teacher.name }}</td>
+            <td><a href="/edit_teacher/{{ teacher.id }}">Edit</a></td>
+            <td><a href="/delete_teacher/{{ teacher.id }}">Delete</a></td>
+        </tr>
+        % end
+    </table>
+
+    <a href="/add_student">Add New Student</a>
+    <br>
+    <a href="/add_teacher">Add New Teacher</a>
+</body>
+
+</html>
